@@ -8,6 +8,8 @@ import {
 } from "vscode-languageserver/node";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
+import { style } from "./style";
+
 let connection = createConnection(ProposedFeatures.all);
 
 let documents: TextDocuments<TextDocument> = new TextDocuments(TextDocument);
@@ -49,7 +51,7 @@ const setDiagnostic = (
 
 const getTextIndex = (list: string[], i: number, start: number) => {
   let strOffset = list.slice(0, i).join(" ").length;
-  if (i > 1) strOffset = strOffset + 1;
+  if (i > 0) strOffset = strOffset + 1;
   const subStartIndex: number = start + strOffset;
   const subLastIndex: number = subStartIndex + list[i].length;
   return { subLastIndex, subStartIndex };
@@ -63,21 +65,36 @@ const validateStyle = (text: TextDocument) => {
   do {
     m = pattern.exec(raw);
     if (m) {
-      const style = m[0];
-      const styleList = style.split(" ");
+      const currentStyle = m[0];
+      const styleList = currentStyle.split(" ");
       const lastIndex = pattern.lastIndex;
       const startIndex = lastIndex - m[0].length;
       let duplicateList: number[] = [];
       styleList.forEach((value: string, i) => {
         if (value !== "" && value.length >= 2) {
-          const check = `^${value}`;
-          const regex = new RegExp(check);
-          const filter = styleList.filter((item) => regex.test(item));
+          const index = value.includes(":") ? value.split(":")[0] : value;
+          const filter = styleList.filter((item) => {
+            const itm = item.includes(":") ? item.split(":")[0] : item;
+            if (itm === index) {
+              return item;
+            }
+          });
           if (filter.length > 1) {
             filter.forEach((item) => {
               duplicateList.push(styleList.indexOf(item));
               duplicateList.push(i);
             });
+          }
+
+          if (!style[index]) {
+            const { subStartIndex, subLastIndex } = getTextIndex(
+              styleList,
+              i,
+              startIndex
+            );
+            diagnostics.push(
+              setDiagnostic(text, 0, subStartIndex, subLastIndex, `unknown`)
+            );
           }
         }
       });
