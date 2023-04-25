@@ -73,19 +73,21 @@ const validateStyle = (text: TextDocument) => {
       styleList.forEach((value: string, i) => {
         if (value !== "" && value.length >= 2) {
           const index = value.includes(":") ? value.split(":")[0] : value;
+          //check duplicated data
           const filter = styleList.filter((item) => {
             const itm = item.includes(":") ? item.split(":")[0] : item;
             if (itm === index) {
               return item;
             }
           });
+          // add duplicated data
           if (filter.length > 1) {
             filter.forEach((item) => {
               duplicateList.push(styleList.indexOf(item));
               duplicateList.push(i);
             });
           }
-
+          // set error diagnostic
           if (!style[index]) {
             const { subStartIndex, subLastIndex } = getTextIndex(
               styleList,
@@ -99,6 +101,7 @@ const validateStyle = (text: TextDocument) => {
         }
       });
 
+      //set diagnostic warning of duplicate
       new Set(duplicateList).forEach((elm) => {
         const { subStartIndex, subLastIndex } = getTextIndex(
           styleList,
