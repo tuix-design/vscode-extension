@@ -47,13 +47,19 @@ const setDiagnostic = (
   return result;
 };
 
+const getTextIndex = (list: string[], i: number, start: number) => {
+  let strOffset = list.slice(0, i).join(" ").length;
+  if (i > 1) strOffset = strOffset + 1;
+  const subStartIndex: number = start + strOffset;
+  const subLastIndex: number = subStartIndex + list[i].length;
+  return { subLastIndex, subStartIndex };
+};
+
 const validateStyle = (text: TextDocument) => {
   const raw = text.getText();
   const pattern = /(?<=style="|hover=")[^"]*/g;
   let m: RegExpExecArray | null = null;
-  let problems = 0;
   let diagnostics: Diagnostic[] = [];
-  let diagnostic: Diagnostic;
   do {
     m = pattern.exec(raw);
     if (m) {
@@ -61,27 +67,36 @@ const validateStyle = (text: TextDocument) => {
       const styleList = style.split(" ");
       const lastIndex = pattern.lastIndex;
       const startIndex = lastIndex - m[0].length;
-      styleList.forEach((item: string, i: number) => {
-        let strOffset = styleList.slice(0, i).join(" ").length;
-        if (i > 1) strOffset = strOffset + 1;
-        const subStartIndex: number = startIndex + strOffset;
-        const subLastIndex: number = subStartIndex + item.length;
-        const duplicate: boolean =
-          styleList.filter((stl) => stl === item).length > 1;
-        if (duplicate) {
-          diagnostics.push(
-            setDiagnostic(
-              text,
-              3,
-              subStartIndex,
-              subLastIndex,
-              `${item} is already used`
-            )
-          );
-          connection.console.log(
-            JSON.stringify(styleList.slice(0, i).join(" "))
-          );
+      let duplicateList: number[] = [];
+      styleList.forEach((value: string, i) => {
+        if (value !== "" && value.length >= 2) {
+          const check = `^${value}`;
+          const regex = new RegExp(check);
+          const filter = styleList.filter((item) => regex.test(item));
+          if (filter.length > 1) {
+            filter.forEach((item) => {
+              duplicateList.push(styleList.indexOf(item));
+              duplicateList.push(i);
+            });
+          }
         }
+      });
+
+      new Set(duplicateList).forEach((elm) => {
+        const { subStartIndex, subLastIndex } = getTextIndex(
+          styleList,
+          elm,
+          startIndex
+        );
+        diagnostics.push(
+          setDiagnostic(
+            text,
+            3,
+            subStartIndex,
+            subLastIndex,
+            `${styleList[elm]} is already used`
+          )
+        );
       });
     }
   } while (m);
