@@ -1,10 +1,8 @@
 import {
   createConnection,
-  Definition,
   Diagnostic,
   DiagnosticSeverity,
   Hover,
-  Position,
   ProposedFeatures,
   Range,
   TextDocuments,
@@ -53,6 +51,7 @@ const setDiagnostic = (
   return result;
 };
 
+/**function to get text position */
 const getTextIndex = (list: string[], i: number, start: number) => {
   let strOffset = list.slice(0, i).join(" ").length;
   if (i > 0) strOffset = strOffset + 1;
@@ -131,7 +130,6 @@ const validateStyle = (text: TextDocument) => {
         }
       });
 
-      connection.console.log(JSON.stringify(duplicateList));
       //set diagnostic warning of duplicate
       new Set(duplicateList).forEach((elm) => {
         const index = styleList[elm].includes(":")
@@ -175,8 +173,6 @@ connection.onInitialize((params) => {
 connection.onInitialized(() => {
   connection.console.log("hello");
 });
-
-connection.onHover;
 
 connection.onHover((params): Hover => {
   const document = documents.get(params.textDocument.uri);
