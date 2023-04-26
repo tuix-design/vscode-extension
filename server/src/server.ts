@@ -1,8 +1,12 @@
 import {
   createConnection,
+  Definition,
   Diagnostic,
   DiagnosticSeverity,
+  Hover,
+  Position,
   ProposedFeatures,
+  Range,
   TextDocuments,
   TextDocumentSyncKind,
 } from "vscode-languageserver/node";
@@ -62,6 +66,7 @@ const validateStyle = (text: TextDocument) => {
   const pattern = /(?<=style="|hover=")[^"]*/g;
   let m: RegExpExecArray | null = null;
   let diagnostics: Diagnostic[] = [];
+
   do {
     m = pattern.exec(raw);
     if (m) {
@@ -73,13 +78,17 @@ const validateStyle = (text: TextDocument) => {
       styleList.forEach((value: string, i) => {
         if (value !== "" && value.length >= 2) {
           const index = value.includes(":") ? value.split(":")[0] : value;
+          const customValue = value.includes(":") ? value.split(":")[1] : "";
           //check duplicated data
           const filter = styleList.filter((item) => {
             const itm = item.includes(":") ? item.split(":")[0] : item;
-            if (itm === index) {
+            const key = style[itm] && Object.keys(style[itm])[0];
+            const key1 = style[index] && Object.keys(style[index])[0];
+            if (key && key1 && key === key1) {
               return item;
             }
           });
+
           // add duplicated data
           if (filter.length > 1) {
             filter.forEach((item) => {
@@ -98,11 +107,36 @@ const validateStyle = (text: TextDocument) => {
               setDiagnostic(text, 0, subStartIndex, subLastIndex, `unknown`)
             );
           }
+
+          // set hint diagnostic
+          if (style[index]) {
+            const { subStartIndex, subLastIndex } = getTextIndex(
+              styleList,
+              i,
+              startIndex
+            );
+            diagnostics.push(
+              setDiagnostic(
+                text,
+                1,
+                subStartIndex,
+                subLastIndex,
+                JSON.stringify(style[index])
+                  .replace("unset", customValue)
+                  .replace(/{|}/g, "")
+                  .replace(/_/g, " ")
+              )
+            );
+          }
         }
       });
 
+      connection.console.log(JSON.stringify(duplicateList));
       //set diagnostic warning of duplicate
       new Set(duplicateList).forEach((elm) => {
+        const index = styleList[elm].includes(":")
+          ? styleList[elm].split(":")[0]
+          : styleList[elm];
         const { subStartIndex, subLastIndex } = getTextIndex(
           styleList,
           elm,
@@ -114,7 +148,7 @@ const validateStyle = (text: TextDocument) => {
             3,
             subStartIndex,
             subLastIndex,
-            `${styleList[elm]} is already used`
+            `${Object.keys(style[index])[0]} is already declared`
           )
         );
       });
@@ -133,12 +167,35 @@ connection.onInitialize((params) => {
       completionProvider: {
         resolveProvider: true,
       },
+      hoverProvider: true,
     },
   };
 });
 
 connection.onInitialized(() => {
   connection.console.log("hello");
+});
+
+connection.onHover;
+
+connection.onHover((params): Hover => {
+  const document = documents.get(params.textDocument.uri);
+  const line = params.position.line;
+  const character = params.position.character;
+  const range: Range = {
+    start: { line, character: 0 },
+    end: { line: line + 1, character: 0 },
+  };
+  const wordLine = document?.getText(range);
+  const check = "hover=" || "style=";
+  if (wordLine?.includes(check)) {
+    const word = "";
+    connection.console.log(JSON.stringify(wordLine));
+  }
+
+  return {
+    contents: "",
+  };
 });
 
 connection.listen();
